@@ -39,9 +39,7 @@ inquirer.prompt([
             
             const queryPromise = new Promise((resolve, reject) => {
                 db.query(`SELECT * FROM ${table}`, (err, results, fields) => {
-                    
-                    console.log('Results: ');
-                    results.forEach(row => console.log(row));
+                    console.table(results)
                     resolve(results)
                 })
             })//queryPromise end 
@@ -115,8 +113,7 @@ inquirer.prompt([
                          `SELECT r.id, r.job_title, d.name, r.salary 
                           FROM roles r INNER JOIN departments d 
                           ON r.id = d.id;`, (err, results) => {
-                                 console.log('Results: ');
-                                 results.forEach(row => console.log(row));
+                                 console.table(results)
                                  resolve(results)
                          })
                     }).then((answer5) => {
