@@ -3,7 +3,7 @@ const fs = require('fs');
 const util = require('util');
 const inquirer = require('inquirer');
 const { type } = require('os');
-
+const e = require('express');
 
 
 // Connect to database
@@ -106,97 +106,76 @@ inquirer.prompt([
                             }).catch(err => console.error(err))
                     } // end of departments table if statement
     
-          // Roles Table
-if (table === 'roles') {
-    const queryPromise = new Promise((resolve, reject) => {
-      db.query(
-        `SELECT r.id, r.job_title AS Role, d.name AS Department, r.salary AS Salary 
-         FROM roles r INNER JOIN departments d 
-         ON r.id = d.id;`, (err, results) => {
-          console.table(results)
-          resolve(results)
-        }
-      )
-    })
-  
-    queryPromise.then((answer5) => {
-      inquirer.prompt([
-        {
-          type: 'list',
-          name: 'rolesAction',
-          message: 'Would you like to add a new role?',
-          choices: ['yes', 'no']
-        }
-      ]).then((answer6) => {
-        if (answer6.rolesAction === 'no') {
-          // Close the connection when you're done
-          db.end((err) => {
-            if (err) throw err;
-            console.log('Connection closed.');
-          });
-          return;
-        } else {
-          inquirer.prompt([
-            {
-              type: 'input',
-              name: 'roleName',
-              message: 'What is the name of the role?'
-            },
-            {
-              type: 'input',
-              name: 'salary',
-              message: 'What is the salary for this role?'
-            },
-            
-            {
-              type: 'input',
-              name: 'departmentName',
-              message: 'What department is this role assigned to?'
-            }
-          ]).then((answer7) => {
-            const { roleName, salary, departmentName } = answer7;
-            const rolePromise = new Promise((resolve, reject) => {
-              db.beginTransaction((err) => {
-                if (err) {
-                  reject(err);
-                }
+        // Roles Table
+        if (table === 'roles') {
+            const queryPromise = new Promise((resolve, reject) => {
                 db.query(
-                  `INSERT INTO roles (job_title, salary) VALUES ('${roleName}', ${salary});`,
-                  (err, result) => {
-                    if (err) {
-                      return db.rollback(() => reject(err));
-                    }
-                    db.query(
-                      `INSERT INTO departments (name) VALUES ('${departmentName}');`,
-                      (err, result) => {
-                        if (err) {
-                          return db.rollback(() => reject(err));
-                        }
-                        db.commit((err) => {
-                          if (err) {
-                            return db.rollback(() => reject(err));
-                          }
-                          resolve();
-                        });
-                      }
-                    );
-                  }
-                );
-              });
-            });
-  
-            rolePromise.then(() => {
-              // Close the connection when you're done
-              db.end((err) => {
-                if (err) throw err;
-                console.log('New role added. Connection closed.');
-              });
-            }).catch(err => console.error(err));
-          }).catch(err => console.error(err));
-        }
-      }).catch(err => console.error(err));
-    }).catch(err => console.error(err));
-  } // end of roles table
+                         `SELECT r.id AS Role ID, r.job_title AS Role, d.name AS Department, r.salary AS Salary
+                          FROM roles r INNER JOIN departments d 
+                          ON r.id = d.id;`, (err, results) => {
+                                 console.table(results)
+                                 resolve(results)
+                         })
+                    }).then((answer5) => {
+                             inquirer.prompt([
+                                 {
+                                     type: 'list',
+                                     name: 'rolesAction',
+                                     message: 'Would you like to add a new role?',
+                                     choices: ['yes', 'no']
+                                 }
+                             ]).then((answer6) => {
+                                     if (answer6.rolesAction === 'no') {
+                                        // Close the connection when you're done
+                                        db.end((err) => {
+                                            if (err) throw err;
+                                             console.log('Connection closed.');
+                                              });
+                                         return;
+                                     } else {
+                                         inquirer.prompt([
+                                             {
+                                                 type: 'input',
+                                                 name: 'roleName',
+                                                 message: 'What is the name of the role?'
+                                             },
+                                             {
+                                                 type: 'input',
+                                                 name: 'salary',
+                                                 message: 'What is the salary for this role?'
+                                             },
+                                             {
+                                                 type: 'input',
+                                                 name: 'departmentName',
+                                                 message: 'What department is this role assigned to?'
+                                             }
+                                         ]).then((answer7) => {
+                                            const { roleName, salary, departmentName } = answer7;
+                                           
+                                            db.beginTransaction()
+                                            .then(() => {
+                                              return db.query(`INSERT INTO roles (job_title, salary) VALUES (?, ?)`, [roleName, salary]);
+                                            })
+                                            .then(() => {
+                                              return db.query(`INSERT INTO departments (name) VALUES (?)`, [departmentName]);
+                                            })
+                                            .then(() => {
+                                              return db.commit();
+                                            })
+                                            .then(() => {
+                                              console.log('New role added. Connection closed.');
+                                              db.end();
+                                            })
+                                            .catch((err) => {
+                                              db.rollback();
+                                              console.log(`Error occurred during transaction. Rolling back: ${err}`);
+                                              db.end();
+                                            });
+                                           
+                                            }).catch(err => console.error(err))
+                                            
+                    }}).catch(err => console.error(err))    
+                                    })}
                                 
         ////////////////////////////////////                      
         if (table === 'employees') {
@@ -214,8 +193,13 @@ if (table === 'roles') {
                     inquirer.prompt([
                         {
                             type: 'input',
-                            name: 'name',
-                            message: 'What is the full name of the new employee?'
+                            name: 'firstName',
+                            message: 'What is the first name of the new employee?'
+                        },
+                        {
+                            type: 'input',
+                            name: 'lastName',
+                            message: 'What is the last name of the new employee?'
                         },
                         {
                             type: 'input',
@@ -223,19 +207,16 @@ if (table === 'roles') {
                             message: 'What is their starting salary?'
                         }
                     ]).then((answer9) => {
-                        const { salary } = answer9;
-                        const nameArray = answer9.name.split(' ');
-                        const firstName = nameArray[0];
-                        const lastName = nameArray.slice(1).join(' ');
+                        const { firstName, lastName, salary } = answer9;
                         
                             db.query(`
                             
-                                    INSERT INTO employees (first_name, last_name, salary) 
-                                    VALUES ('${firstName}', '${lastName}', ${salary});
+                            INSERT INTO employees (first_name, last_name, salary) 
+                            VALUES ('${firstName}', '${lastName}', ${salary});
             
-                                    `)
-                    }).then(() => {
-                        
+                                `)
+                    }).then((answer10) => {
+                        console.log(answer10);
                         // Close the connection when you're done
                         db.end((err) => {
                             if (err) throw err;
@@ -250,10 +231,9 @@ if (table === 'roles') {
                             message: 'What is the full name of the employee you would like to edit?'
                         },
                         {
-                            type: 'list',
+                            type: 'input',
                             name: 'role',
-                            message: 'What is their new role?',
-                            choices: ['Manager', 'Engineer', 'Salesperson', 'Marketing Coordinator']
+                            message: 'What is their new role?'
                         }
                     ]).then((answer11) => {
                         let { role } = answer11;
@@ -287,6 +267,8 @@ if (table === 'roles') {
                                   role = 5;
                                   break;
                                 default:
+                                  console.log('Please choose a valid role.');
+                                  break;
                               }
 
                               
@@ -301,11 +283,8 @@ if (table === 'roles') {
                                 console.error(err);
                                 
                               } else {
+                                console.log(`Successfully updated job title of ${firstName} ${lastName}.`);
                                 
-                                db.end((err) => {
-                                    if (err) throw err;
-                                    console.log(`Successfully updated job title of ${firstName} ${lastName}.`);
-                                });
                               }
                             })
                         }})
@@ -314,5 +293,3 @@ if (table === 'roles') {
         }).catch(err => console.error(err))
                             
           
-        
-
